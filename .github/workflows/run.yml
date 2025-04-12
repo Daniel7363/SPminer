@@ -1,4 +1,4 @@
-name: Run Decoder
+name: Run Decoder, Count Patterns, and Analyze Pattern Counts
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-decoder:
+  run-decoder-count-patterns-analyze:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,36 +24,32 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-
       - name: Build Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           load: true
-          tags: decoder-image:latest
+          tags: decoder-image:${{ github.sha }}
           cache-from: |
             type=local,src=/tmp/.buildx-cache
           cache-to: |
             type=local,dest=/tmp/.buildx-cache-new,mode=max
-
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
       - name: Create output directories
         run: |
           mkdir -p ${{ github.workspace }}/plots/cluster
           mkdir -p ${{ github.workspace }}/results
           chmod -R 777 ${{ github.workspace }}/plots
           chmod -R 777 ${{ github.workspace }}/results
-
       - name: Run decoder in Docker container
         run: |
           docker run --rm \
             -v ${{ github.workspace }}:/app \
             -e PYTHONUNBUFFERED=1 \
-            decoder-image:latest \
+            decoder-image:${{ github.sha }} \
             bash -c "
               set -e
               echo 'Starting decoder run...'
@@ -61,24 +57,62 @@ jobs:
                 --dataset=networkx_graph.pkl \
                 --n_trials 1000 \
                 --node_anchored \
-                --out_path=/app/results/patterns.pkl
+                --out_path=/app/results/patterns.pkl \
+                > /app/results/decoder_output.log 2>&1
+              echo 'Decoder run complete.'
               echo 'Checking output directories...'
               ls -la /app/plots/cluster
               ls -la /app/results
-              "
-
+            "
       - name: Check for generated files
         run: |
-          echo "Checking plots directory:"
-          ls -R plots/ || echo "No plots directory found"
-          echo "Checking results directory:"
-          ls -R results/ || echo "No results directory found"
-
-      - name: Upload plots as artifact
-        if: always()  # Run even if previous steps failed
+          if [ -f "results/patterns.pkl" ]; then echo "patterns.pkl exists"; else echo "patterns.pkl not found"; fi
+          if [ -d "plots/cluster" ]; then echo "Cluster plots directory exists"; else echo "No cluster plots found"; fi
+      - name: Run count patterns with decoder output as input
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -e PYTHONUNBUFFERED=1 \
+            decoder-image:${{ github.sha }} \
+            bash -c "
+              set -e
+              echo 'Starting count patterns...'
+              python3 -m analyze.count_patterns \
+                --dataset=/app/results/patterns.pkl \
+                --out_path=/app/results/counts.json \
+                --node_anchored \
+                > /app/results/count_patterns_output.log 2>&1
+              echo 'Count patterns complete.'
+              echo 'Checking output directories...'
+              ls -la /app/results
+            "
+      - name: Check for count patterns output
+        run: |
+          if [ -f "results/counts.json" ]; then echo "counts.json exists"; else echo "counts.json not found"; fi
+      - name: Run analyze pattern counts with the counts output
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/app \
+            -e PYTHONUNBUFFERED=1 \
+            decoder-image:${{ github.sha }} \
+            bash -c "
+              set -e
+              echo 'Starting analyze pattern counts...'
+              python3 -m analyze.analyze_pattern_counts \
+                --counts_path=/app/results/ \
+                > /app/results/analyze_pattern_counts_output.log 2>&1
+              echo 'Analyze pattern counts complete.'
+              echo 'Checking output directories...'
+              ls -la /app/results
+            "
+      - name: Check for analyze pattern counts output
+        run: |
+          if [ -f "results/analyze_pattern_counts_output.json" ]; then echo "analyze_pattern_counts_output.json exists"; else echo "analyze_pattern_counts_output.json not found"; fi
+      - name: Upload plots and results as artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: decoder-plots
+          name: decoder-plots-results
           path: |
             plots/
             results/
@@ -91,6 +125,9 @@ jobs:
         with:
           name: decoder-logs
           path: |
+            results/decoder_output.log
+            results/count_patterns_output.log
+            results/analyze_pattern_counts_output.log
             *.log
             *.err
           if-no-files-found: ignore
