@@ -78,7 +78,7 @@ jobs:
               set -e
               echo 'Starting count patterns...'
               python3 -m analyze.count_patterns \
-                --dataset=/app/results/patterns.pkl \
+                --dataset=networkx_graph.pkl  \
                 --out_path=/app/results/counts.json \
                 --node_anchored \
                 > /app/results/count_patterns_output.log 2>&1
