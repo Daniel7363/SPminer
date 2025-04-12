@@ -77,7 +77,7 @@ jobs:
             bash -c "
               set -e
               echo 'Starting count patterns...'
-              python3 -m analyze.count_patterns \
+              python -m analyze.count_patterns \
                 --dataset=networkx_graph.pkl  \
                 --out_path=/app/results/counts.json \
                 --node_anchored \
@@ -98,7 +98,7 @@ jobs:
             bash -c "
               set -e
               echo 'Starting analyze pattern counts...'
-              python3 -m analyze.analyze_pattern_counts \
+              python -m analyze.analyze_pattern_counts \
                 --counts_path=/app/results/ \
                 > /app/results/analyze_pattern_counts_output.log 2>&1
               echo 'Analyze pattern counts complete.'
