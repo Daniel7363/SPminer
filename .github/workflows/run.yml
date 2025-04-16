@@ -54,7 +54,7 @@ jobs:
               set -e
               echo 'Starting decoder run...'
               python -m subgraph_mining.decoder \
-                --dataset=networkx_graph.pkl \
+                --dataset=metta.pkl \
                 --n_trials 1000 \
                 --out_path=/app/results/patterns.pkl \
                 > /app/results/decoder_output.log 2>&1
@@ -77,7 +77,7 @@ jobs:
               set -e
               echo 'Starting count patterns...'
               python -m analyze.count_patterns \
-                --dataset=networkx_graph.pkl  \
+                --dataset=metta.pkl  \
                 --out_path=/app/results/counts.json \
                 --queries_path=results/patterns.pkl \
                 > /app/results/count_patterns_output.log 2>&1
