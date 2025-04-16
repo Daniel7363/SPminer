@@ -60,6 +60,8 @@ def can_be_isomorphic(query_stats, target_stats):
         return False
     if query_stats['n_edges'] > target_stats['n_edges']:
         return False
+    if query_stats['avg_degree'] > target_stats['avg_degree']:
+         return False
     query_degrees = query_stats['degree_seq']
     target_degrees = target_stats['degree_seq']
     return all(d <= target_degrees[i] for i, d in enumerate(query_degrees))
