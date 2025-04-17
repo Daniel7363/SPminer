@@ -55,7 +55,7 @@ jobs:
               echo 'Starting decoder run...'
               python -m subgraph_mining.decoder \
                 --dataset=metta.pkl \
-                --n_trials 1000 \
+                --n_trials 100 \
                 --out_path=/app/results/patterns.pkl \
                 > /app/results/decoder_output.log 2>&1
               echo 'Decoder run complete.'
